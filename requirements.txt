@@ -1,0 +1,2 @@
+# BlueZ system D-Bus client used by core.bluetooth_service on Raspberry Pi OS.
+dbus-next>=0.2.3,<0.3
