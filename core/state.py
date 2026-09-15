@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Literal, TypeAlias
 
 
-ThemeId: TypeAlias = Literal["dark_modern", "mazda_classic","mazda_night_drive"]
+ThemeId: TypeAlias = Literal["dark_modern", "mazda_classic", "mazda_night_drive"]
 BluetoothConnectionState: TypeAlias = Literal[
     "unavailable",
     "disconnected",
@@ -43,3 +43,8 @@ class AppState:
     track_elapsed_seconds: float = 86.0
     track_duration_seconds: float = 232.0
     bt_playlist_index: int = 0
+
+    # NOWE ZMIENNE DO MUZYKI:
+    album_art_url: str | None = None
+    lyrics_text: str = "Szukam tekstu w sieci...\n\n(Symulacja pobierania z API LRCLIB)"
+    is_lyrics_visible: bool = False

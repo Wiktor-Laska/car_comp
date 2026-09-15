@@ -63,6 +63,7 @@ class AppController:
             "prev_track": self.prev_track,
             "connect_bluetooth": self.connect_bluetooth,
             "disconnect_bluetooth": self.disconnect_bluetooth,
+            "toggle_lyrics": self.toggle_lyrics,
         }
         self.update_ui(replace_root_layout=True)
 
@@ -121,7 +122,9 @@ class AppController:
 
         self.state.is_playing = not self.state.is_playing
         self.update_ui()
-
+    def toggle_lyrics(self) -> None:
+            self.state.is_lyrics_visible = not self.state.is_lyrics_visible
+            self.update_ui()
     def next_track(self) -> None:
         """Request the next AVRCP track, with a desktop mock fallback."""
         if self._uses_bluez:
@@ -155,7 +158,11 @@ class AppController:
         self.state.track_elapsed_seconds = 0.0
         self.state.track_duration_seconds = duration_seconds
         self.state.is_playing = True
+        safe_title = title.replace(" ", "")
+        self.state.album_art_url = f"https://picsum.photos/seed/{safe_title}/300/300"
 
+        # Symulacja tekstu piosenki
+        self.state.lyrics_text = f"Odtwarzasz utwór:\n{title}\nwykonawcy: {artist}\n\nTekst zsynchronizowany:\n[00:10] ...śpiewanie...\n[00:20] ...refren...\n[00:45] (Gitara gra)\n\nSystem Mazda Pulse UI v1.0"
     def connect_bluetooth(self) -> None:
         """Connect the paired phone selected by the Pi Bluetooth configuration."""
         if not self._uses_bluez:

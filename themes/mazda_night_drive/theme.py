@@ -111,27 +111,54 @@ class MazdaNightDriveTheme(ThemeInterface):
         )
 
     def _update_media_bubble(self, state: AppState, callbacks: ThemeCallbacks) -> None:
-            self.media_bubble.width = 300
-            self.media_bubble.height = 62
-            # Używamy klasycznego, pancernego ft.Padding(left, top, right, bottom)
-            self.media_bubble.padding = ft.Padding(left=8, top=0, right=8, bottom=0)
-            self.media_bubble.on_click = lambda _: callbacks["navigate"]("bluetooth")
+            is_expanded = state.is_media_expanded
+
+            # Wymiary dymku w zależności od stanu (rozwinięty vs zwinięty)
+            self.media_bubble.width = 380 if is_expanded else 64
+            self.media_bubble.height = 76 if is_expanded else 64
+            self.media_bubble.border_radius = 38 if is_expanded else 32
+            self.media_bubble.padding = ft.Padding(8, 8, 8, 8)
+
+            # Jeśli dymek jest zwinięty, całe kliknięcie go rozwija
+            self.media_bubble.on_click = None if is_expanded else lambda _: callbacks["toggle_media"]()
+
+            if not is_expanded:
+                # TRYB ZWINIĘTY (tylko ikona z boku ekranu)
+                self.media_bubble.content = ft.Icon(ft.Icons.MUSIC_NOTE_ROUNDED, color=self.text_main, size=28)
+                return
+
+            # TRYB ROZWINIĘTY
+            # Okładka albumu lub szara nutka, jeśli brak URL
+            cover_art = ft.Image(
+                src=state.album_art_url, width=60, height=60, border_radius=30, fit=ft.ImageFit.COVER
+            ) if state.album_art_url else ft.Container(
+                content=ft.Icon(ft.Icons.MUSIC_NOTE_ROUNDED, color=self.text_muted, size=28),
+                width=60, height=60, bgcolor=self.panel, border_radius=30, alignment=ft.Alignment(0,0)
+            )
 
             self.media_bubble.content = ft.Row([
-                ft.Container(
-                    content=ft.Icon(ft.Icons.MUSIC_NOTE_ROUNDED, color=self.text_main, size=24),
-                    width=46, height=46, bgcolor=self.panel, border_radius=12, alignment=ft.Alignment(0,0)
-                ),
+                # 1. Okładka (Kliknięcie w nią otwiera pełny odtwarzacz)
+                ft.Container(content=cover_art, on_click=lambda _: callbacks["navigate"]("bluetooth"), ink=True),
+
+                # 2. Informacje (tytuł + artysta)
                 ft.Column([
-                    ft.Text(state.current_track_artist, size=13, color=self.text_muted, weight=ft.FontWeight.W_500, max_lines=1),
                     ft.Text(state.current_track_title, size=16, color=self.text_main, weight=ft.FontWeight.BOLD, max_lines=1),
+                    ft.Text(state.current_track_artist, size=13, color=self.text_muted, weight=ft.FontWeight.W_500, max_lines=1),
                 ], expand=True, alignment="center", spacing=0),
+
+                # 3. Przyciski sterujące
+                ft.IconButton(icon=ft.Icons.SKIP_PREVIOUS_ROUNDED, icon_color=self.text_main, icon_size=24, on_click=lambda _: callbacks["prev_track"]()),
                 ft.IconButton(
                     icon=ft.Icons.PAUSE_ROUNDED if state.is_playing else ft.Icons.PLAY_ARROW_ROUNDED,
-                    icon_color=self.text_main,
-                    on_click=lambda e: (e.control.update(), callbacks["toggle_play"]())
-                )
-            ], alignment="spaceBetween")
+                    icon_color=self.accent, icon_size=32,
+                    on_click=lambda _: callbacks["toggle_play"]()
+                ),
+                ft.IconButton(icon=ft.Icons.SKIP_NEXT_ROUNDED, icon_color=self.text_main, icon_size=24, on_click=lambda _: callbacks["next_track"]()),
+
+                # 4. Przycisk zwiń (chowa dymek)
+                ft.IconButton(icon=ft.Icons.KEYBOARD_ARROW_DOWN_ROUNDED, icon_color=self.text_muted, icon_size=20, on_click=lambda _: callbacks["toggle_media"]()),
+
+            ], alignment="spaceBetween", spacing=0)
     def render_home_screen(self, navigate_func) -> ft.Control:
         return render_home(self, navigate_func)
 
