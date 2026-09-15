@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Literal, TypeAlias
 
 
-ThemeId: TypeAlias = Literal["dark_modern", "mazda_classic"]
+ThemeId: TypeAlias = Literal["dark_modern", "mazda_classic","mazda_night_drive"]
 BluetoothConnectionState: TypeAlias = Literal[
     "unavailable",
     "disconnected",
@@ -19,7 +19,7 @@ class AppState:
     """Mutable runtime state shared by the controller and the active theme."""
 
     active_app: str = "home"
-    theme_id: ThemeId = "dark_modern"
+    theme_id: ThemeId = "mazda_night_drive"
 
     is_media_expanded: bool = True
     is_reverse_engaged: bool = False

@@ -16,7 +16,7 @@ from core.bluetooth_service import BluetoothMediaService, BluetoothServiceError
 from core.theme_interface import ThemeCallbacks, ThemeInterface
 from themes.dark_modern.theme import DarkModernTheme
 from themes.mazda_classic.theme import MazdaClassicTheme
-
+from themes.mazda_night_drive.theme import MazdaNightDriveTheme
 
 ThemeFactory = Callable[[], ThemeInterface]
 MockTrack: TypeAlias = tuple[str, str, float]
@@ -25,6 +25,7 @@ BluetoothOperation: TypeAlias = Callable[[AppState], Awaitable[None]]
 THEME_FACTORIES: Mapping[ThemeId, ThemeFactory] = {
     "dark_modern": DarkModernTheme,
     "mazda_classic": MazdaClassicTheme,
+    "mazda_night_drive": MazdaNightDriveTheme,
 }
 MOCK_BLUETOOTH_PLAYLIST: tuple[MockTrack, ...] = (
     ("Alone", "I Prevail", 232.0),
