@@ -27,9 +27,11 @@ def render_bluetooth(theme, state: AppState, callbacks: ThemeCallbacks) -> ft.Co
             )
         )
     else:
-        # Widok okładki albumu
+            # Widok okładki albumu
         if state.album_art_url:
-            media_display = ft.Image(src=state.album_art_url, width=260, height=260, fit=ft.ImageFit.COVER, border_radius=18)
+            # Zmieniamy fit=ft.ImageFit.COVER na fit="cover"
+            media_display = ft.Image(src=state.album_art_url, width=260, height=260, fit="cover", border_radius=18)
+
         else:
             media_display = ft.Container(
                 width=260, height=260, bgcolor=theme.panel, border_radius=18,

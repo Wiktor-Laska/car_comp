@@ -129,8 +129,9 @@ class MazdaNightDriveTheme(ThemeInterface):
 
             # TRYB ROZWINIĘTY
             # Okładka albumu lub szara nutka, jeśli brak URL
+            # Zmieniamy fit=ft.ImageFit.COVER na fit="cover"
             cover_art = ft.Image(
-                src=state.album_art_url, width=60, height=60, border_radius=30, fit=ft.ImageFit.COVER
+                src=state.album_art_url, width=60, height=60, border_radius=30, fit="cover"
             ) if state.album_art_url else ft.Container(
                 content=ft.Icon(ft.Icons.MUSIC_NOTE_ROUNDED, color=self.text_muted, size=28),
                 width=60, height=60, bgcolor=self.panel, border_radius=30, alignment=ft.Alignment(0,0)

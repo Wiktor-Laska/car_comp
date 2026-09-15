@@ -84,6 +84,17 @@ class AppController:
         A theme swap requires replacing the page root: each theme owns a
         different Flet control tree and may keep references to its overlays.
         """
+        current_title = self.state.current_track_title
+            # Wykrywamy, czy iPhone przesłał właśnie nowy tytuł
+        if getattr(self, '_last_seen_title', None) != current_title:
+            self._last_seen_title = current_title
+            if current_title and current_title != "Unknown":
+                # Generujemy obrazek na podstawie prawdziwego tytułu z BT
+                safe_title = current_title.replace(" ", "").replace("/", "")
+                self.state.album_art_url = f"https://picsum.photos/seed/{safe_title}/300/300"
+                self.state.lyrics_text = f"Odtwarzasz z telefonu:\n{current_title}\n\n[Trwa szukanie tekstu online...]"
+            else:
+                self.state.album_art_url = None
         active_screen = self._get_active_screen()
         layout = self.theme.get_root_layout(self.state, active_screen, self.callbacks)
 
