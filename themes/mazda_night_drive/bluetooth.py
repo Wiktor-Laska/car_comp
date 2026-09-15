@@ -12,34 +12,72 @@ def render_bluetooth(theme, state: AppState, callbacks: ThemeCallbacks) -> ft.Co
     maximum_progress = max(state.track_duration_seconds, 1.0)
     progress = min(max(state.track_elapsed_seconds, 0.0), maximum_progress)
 
-    # 1. Wizualizacja: Okładka (Album Art) LUB Tekst Piosenki (Lyrics)
+    # 1. Wizualizacja: Okładka (Album Art) LUB Tekst Piosenki (Lyrics Karaoke)
     if state.is_lyrics_visible:
-        # Widok tekstu (skrolowany)
+        lyrics_controls = []
+
+        # Jeśli mamy zsynchronizowany tekst (Karaoke Mode)
+        if state.parsed_lyrics:
+            active_idx = 0
+            # Szukamy, która linijka jest aktualna na podstawie sekund
+            for i, (time_sec, text) in enumerate(state.parsed_lyrics):
+                if time_sec <= state.track_elapsed_seconds:
+                    active_idx = i
+                else:
+                    break
+
+            # Wyświetlamy tylko okno: 1 linijka wstecz, aktualna i 3 w przód
+            start_idx = max(0, active_idx - 1)
+            end_idx = min(len(state.parsed_lyrics), active_idx + 4)
+
+            for i in range(start_idx, end_idx):
+                is_active = (i == active_idx)
+                text_line = state.parsed_lyrics[i][1]
+                if not text_line:
+                    text_line = "..." # Przerwa instrumentalna
+
+                lyrics_controls.append(
+                    ft.Text(
+                        text_line,
+                        size=22 if is_active else 15,
+                        color=theme.accent if is_active else theme.text_muted,
+                        weight=ft.FontWeight.BOLD if is_active else ft.FontWeight.W_500,
+                        text_align=ft.TextAlign.CENTER,
+                        max_lines=2,
+                        overflow=ft.TextOverflow.ELLIPSIS
+                    )
+                )
+        else:
+            # Zwykły tekst (jeśli API nie miało wersji z czasem)
+            lyrics_controls = [ft.Text(state.lyrics_text, color=theme.text_main, size=16, text_align=ft.TextAlign.CENTER)]
+
+        # Kontener wyświetlający linijki
         media_display = ft.Container(
             width=260, height=260,
             bgcolor=theme.panel,
             border_radius=18,
-            border=ft.Border(*[ft.BorderSide(1, theme.accent)]*4), # Czerwona ramka sygnalizuje tryb tekstu
+            border=ft.Border(*[ft.BorderSide(1, theme.accent)]*4),
             padding=16,
-            content=ft.ListView(
-                controls=[ft.Text(state.lyrics_text, color=theme.text_main, size=16, text_align="center")],
-                expand=True, spacing=10
+            content=ft.Column(
+                controls=lyrics_controls,
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=12
             )
         )
     else:
-            # Widok okładki albumu
+        # Widok okładki albumu
         if state.album_art_url:
-            # Zmieniamy fit=ft.ImageFit.COVER na fit="cover"
             media_display = ft.Image(src=state.album_art_url, width=260, height=260, fit="cover", border_radius=18)
-
         else:
+            # TO JEST TEN BRAKUJĄCY FRAGMENT (SZARA NUTKA PODCZAS ŁADOWANIA)
             media_display = ft.Container(
                 width=260, height=260, bgcolor=theme.panel, border_radius=18,
                 border=ft.Border(*[ft.BorderSide(1, theme.panel_border)]*4),
                 content=ft.Column([
                     ft.Icon(ft.Icons.MUSIC_NOTE_ROUNDED, size=64, color=theme.text_muted),
-                    ft.Text("BLUETOOTH\nAUDIO", size=14, color=theme.text_muted, text_align="center")
-                ], alignment="center", horizontal_alignment="center", spacing=8)
+                    ft.Text("BLUETOOTH\nAUDIO", size=14, color=theme.text_muted, text_align=ft.TextAlign.CENTER, weight=ft.FontWeight.W_600)
+                ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8)
             )
 
     # 2. Fabryka przycisków
@@ -72,7 +110,6 @@ def render_bluetooth(theme, state: AppState, callbacks: ThemeCallbacks) -> ft.Co
                 ft.Text("NOW PLAYING", size=14, color=theme.accent, weight=ft.FontWeight.W_600),
                 ft.Container(expand=True),
                 # Przycisk włączania tekstu piosenki (Lyrics)
-                # Przycisk włączania tekstu piosenki (Lyrics)
                 ft.OutlinedButton(
                     content=ft.Row([
                         ft.Icon(ft.Icons.LYRICS_ROUNDED if state.is_lyrics_visible else ft.Icons.LYRICS_OUTLINED),
@@ -89,7 +126,7 @@ def render_bluetooth(theme, state: AppState, callbacks: ThemeCallbacks) -> ft.Co
             ]),
             ft.Container(height=10),
 
-            # Główny interfejs (Kładka po lewej, dane po prawej)
+            # Główny interfejs (Okładka po lewej, dane po prawej)
             ft.Row([
                 media_display,
                 ft.Container(width=50),

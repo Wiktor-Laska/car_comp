@@ -48,3 +48,4 @@ class AppState:
     album_art_url: str | None = None
     lyrics_text: str = "Szukam tekstu w sieci...\n\n(Symulacja pobierania z API LRCLIB)"
     is_lyrics_visible: bool = False
+    parsed_lyrics: list = None

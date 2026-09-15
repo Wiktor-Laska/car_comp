@@ -8,9 +8,12 @@ import asyncio
 import os
 from collections.abc import Awaitable, Callable, Mapping
 from typing import TypeAlias
-
+import re
 import flet as ft
-
+import urllib.request
+import urllib.parse
+import json
+import threading
 from core.state import AppState, ThemeId
 from core.bluetooth_service import BluetoothMediaService, BluetoothServiceError
 from core.theme_interface import ThemeCallbacks, ThemeInterface
@@ -78,32 +81,76 @@ class AppController:
         """Build a fresh theme so it cannot retain controls from another theme."""
         return self._theme_factories[theme_id]()
 
-    def update_ui(self, *, replace_root_layout: bool = False) -> None:
-        """Render the active screen through the current theme.
-
-        A theme swap requires replacing the page root: each theme owns a
-        different Flet control tree and may keep references to its overlays.
-        """
+    def update_ui(self, replace_root_layout=False):
         current_title = self.state.current_track_title
-            # Wykrywamy, czy iPhone przesłał właśnie nowy tytuł
+        current_artist = self.state.current_track_artist
+
+        # Wykrywamy, czy iPhone przesłał właśnie nowy tytuł
         if getattr(self, '_last_seen_title', None) != current_title:
             self._last_seen_title = current_title
+
             if current_title and current_title != "Unknown":
-                # Generujemy obrazek na podstawie prawdziwego tytułu z BT
-                safe_title = current_title.replace(" ", "").replace("/", "")
-                self.state.album_art_url = f"https://picsum.photos/seed/{safe_title}/300/300"
-                self.state.lyrics_text = f"Odtwarzasz z telefonu:\n{current_title}\n\n[Trwa szukanie tekstu online...]"
+                # Ustawiamy stan ładowania (póki nie przyjdzie obrazek, będzie szara nutka)
+                self.state.album_art_url = None
+                self.state.lyrics_text = f"Odtwarzasz: {current_title}\n\n[Szukam danych w sieci...]"
+
+                # Funkcja pobierająca okładkę ORAZ tekst piosenki w tle
+                def fetch_metadata():
+                    # 1. POBIERANIE OKŁADKI (Apple Music)
+                    try:
+                        query = urllib.parse.quote(f"{current_artist} {current_title}")
+                        url_apple = f"https://itunes.apple.com/search?term={query}&entity=song&limit=1"
+                        req_apple = urllib.request.Request(url_apple, headers={'User-Agent': 'MazdaInfotainment/1.0'})
+                        with urllib.request.urlopen(req_apple, timeout=3) as response:
+                            data = json.loads(response.read().decode())
+                            if data['resultCount'] > 0:
+                                self.state.album_art_url = data['results'][0]['artworkUrl100'].replace('100x100bb', '600x600bb')
+                    except Exception as e:
+                        print(f"Błąd okładki: {e}")
+
+                    # 2. POBIERANIE TEKSTU (LRCLIB API)
+                    self.state.parsed_lyrics = None
+                    try:
+                        url_lrc = f"https://lrclib.net/api/get?artist_name={urllib.parse.quote(current_artist)}&track_name={urllib.parse.quote(current_title)}"
+                        req_lrc = urllib.request.Request(url_lrc, headers={'User-Agent': 'MazdaInfotainment/1.0'})
+                        with urllib.request.urlopen(req_lrc, timeout=3) as response:
+                            lrc_data = json.loads(response.read().decode())
+
+                            if lrc_data.get('syncedLyrics'):
+                                # Rozkodowanie formatu np. "[01:15.22] Tekst piosenki"
+                                parsed = []
+                                lrc_pattern = re.compile(r'\[(\d+):(\d+\.\d+)\](.*)')
+                                for line in lrc_data['syncedLyrics'].split('\n'):
+                                    match = lrc_pattern.match(line)
+                                    if match:
+                                        m, s, text = match.groups()
+                                        sec = int(m) * 60 + float(s)
+                                        parsed.append((sec, text.strip()))
+                                self.state.parsed_lyrics = parsed
+                            elif lrc_data.get('plainLyrics'):
+                                self.state.lyrics_text = lrc_data['plainLyrics']
+                            else:
+                                self.state.lyrics_text = "Instrumental / Brak tekstu"
+                    except Exception as e:
+                        print(f"Błąd tekstu: {e}")
+                        self.state.lyrics_text = "Nie znaleziono tekstu dla tego utworu."
+
+                    # Aktualizujemy interfejs po pobraniu obu rzeczy
+                    self.update_ui()
+
+                # Uruchamiamy pobieranie w tle (Teraz wcięcie jest w 100% poprawne)
+                threading.Thread(target=fetch_metadata, daemon=True).start()
             else:
                 self.state.album_art_url = None
+
         active_screen = self._get_active_screen()
         layout = self.theme.get_root_layout(self.state, active_screen, self.callbacks)
 
-        if replace_root_layout or not self.page.controls:
+        if replace_root_layout:
             self.page.controls.clear()
             self.page.add(layout)
-            return
-
-        self.page.update()
+        else:
+            self.page.update()
 
     def navigate(self, app_id: str) -> None:
         """Handle a request to display an application or a camera overlay."""
@@ -133,9 +180,11 @@ class AppController:
 
         self.state.is_playing = not self.state.is_playing
         self.update_ui()
+
     def toggle_lyrics(self) -> None:
-            self.state.is_lyrics_visible = not self.state.is_lyrics_visible
-            self.update_ui()
+        self.state.is_lyrics_visible = not self.state.is_lyrics_visible
+        self.update_ui()
+
     def next_track(self) -> None:
         """Request the next AVRCP track, with a desktop mock fallback."""
         if self._uses_bluez:
@@ -174,6 +223,7 @@ class AppController:
 
         # Symulacja tekstu piosenki
         self.state.lyrics_text = f"Odtwarzasz utwór:\n{title}\nwykonawcy: {artist}\n\nTekst zsynchronizowany:\n[00:10] ...śpiewanie...\n[00:20] ...refren...\n[00:45] (Gitara gra)\n\nSystem Mazda Pulse UI v1.0"
+
     def connect_bluetooth(self) -> None:
         """Connect the paired phone selected by the Pi Bluetooth configuration."""
         if not self._uses_bluez:
